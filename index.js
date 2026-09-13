@@ -516,18 +516,6 @@ const main = async () => {
 
         await fsp.mkdir(path.dirname(OUTPUT_FILE), {recursive: true});
 
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'VK AUDIO'
-        );
-
-        console.log(
-            '=============================='
-        );
-
         const response = await vk.api.audio.get({count: 1});
 
         const track = response.items?.[0];
@@ -544,30 +532,6 @@ const main = async () => {
             );
         }
 
-        console.log(
-            `${track.artist} - ${track.title}`
-        );
-
-        console.log(
-            `VK duration: ${track.duration}s`
-        );
-
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'HLS PLAYLIST'
-        );
-
-        console.log(
-            '=============================='
-        );
-
-        console.log(
-            `URL: ${track.url}`
-        );
-
         const playlistText = await fetchText(track.url);
 
         if (!playlistText.includes('#EXTM3U')) {
@@ -580,79 +544,14 @@ const main = async () => {
 
         const expectedDuration = segments.reduce((sum, segment) => sum + segment.duration, 0);
 
-        console.log(
-            `Сегментов: ${segments.length}`
-        );
-
-        console.log(
-            `EXTINF duration: ` +
-            `${expectedDuration.toFixed(3)}s`
-        );
-
         await downloadAndDecryptSegments(segments);
-
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'CONCAT TS'
-        );
-
-        console.log(
-            '=============================='
-        );
 
         const combinedTsBytes = await concatTsSegments(segments, COMBINED_TS);
 
-        console.log(
-            `Общий TS: ` +
-            `${(
-                combinedTsBytes /
-                1024 /
-                1024
-            ).toFixed(2)} MB`
-        );
-
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'TS -> PCM'
-        );
-
-        console.log(
-            '=============================='
-        );
-
         await convertCombinedTsToRawPcm(COMBINED_TS, COMBINED_RAW);
-
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'PCM VALIDATION'
-        );
-
-        console.log(
-            '=============================='
-        );
 
         const pcmDuration = await validatePcm(COMBINED_RAW, expectedDuration);
 
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'PCM -> MP3'
-        );
-
-        console.log(
-            '=============================='
-        );
         await fsp.rm(OUTPUT_FILE, {force: true});
 
         await encodeRawPcmToMp3(COMBINED_RAW, OUTPUT_FILE);
@@ -665,70 +564,9 @@ const main = async () => {
             );
         }
 
-        console.log(
-            '\n=============================='
-        );
-
-        console.log(
-            'FINISHED'
-        );
-
-        console.log(
-            '=============================='
-        );
-
-        console.log(
-            `Файл: ${OUTPUT_FILE}`
-        );
-
-        console.log(
-            `Размер: ` +
-            `${(
-                outputStat.size /
-                1024 /
-                1024
-            ).toFixed(2)} MB`
-        );
-
-        console.log(
-            `Duration: ` +
-            `${pcmDuration.toFixed(3)}s`
-        );
-
-        console.log(
-            `Expected: ` +
-            `${expectedDuration.toFixed(3)}s`
-        );
-
-        console.log(
-            '\nГотово!'
-        );
-
         success = true;
     } catch (error) {
-        console.error(
-            '\n=============================='
-        );
-
-        console.error(
-            'ERROR'
-        );
-
-        console.error(
-            '=============================='
-        );
-
-        console.error(
-            error?.stack || error
-        );
-
-        console.error(
-            `\nВременные файлы сохранены здесь:`
-        );
-
-        console.error(
-            WORK_DIR
-        );
+        console.error(error)
     } finally {
         if (success) {
             await cleanup();
@@ -736,4 +574,4 @@ const main = async () => {
     }
 }
 
-main();
+main().then()
