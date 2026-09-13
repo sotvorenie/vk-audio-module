@@ -34,9 +34,7 @@ const HTTP_HEADERS = {
 };
 
 function sleep(ms) {
-    return new Promise(resolve => {
-        setTimeout(resolve, ms);
-    });
+    return new Promise(resolve => {setTimeout(resolve, ms)});
 }
 
 const fetchBuffer = async (url, attempts = 5) => {
@@ -355,50 +353,16 @@ const mapLimit = async (items, limit, worker) => {
 }
 
 const downloadAndDecryptSegments = async (segments) => {
-    console.log(
-        '\n=============================='
-    );
-
-    console.log(
-        'DOWNLOAD + DECRYPT'
-    );
-
-    console.log(
-        '=============================='
-    );
-
     await mapLimit(segments, CONCURRENCY, async segment => {
             const number = String(segment.index).padStart(4, '0');
 
             const tsFile = path.join(SEGMENTS_DIR, `${number}.ts`);
 
-            console.log(
-                `[${segment.index + 1}/${segments.length}] ` +
-                `download seg-${segment.index}`
-            );
-
             const encrypted = await fetchBuffer(segment.url);
-
-            console.log(
-                `  encrypted: ` +
-                `${encrypted.length} bytes`
-            );
 
             const decrypted = await decryptSegment(encrypted, segment);
 
-            if (decrypted.length >= 188 && decrypted[0] !== 0x47) {
-                console.warn(
-                    `  WARNING: сегмент #${segment.index} ` +
-                    `не начинается с MPEG-TS sync byte 0x47`
-                );
-            }
-
             await fsp.writeFile(tsFile, decrypted);
-
-            console.log(
-                `  decrypted: ` +
-                `${decrypted.length} bytes`
-            );
         }
     );
 }
