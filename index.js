@@ -460,32 +460,6 @@ const encodeRawPcmToMp3 = (rawFile, outputFile) => {
                     '-write_xing 1'
                 ])
                 .on(
-                    'start',
-                    command => {
-                        console.log(
-                            '\nFinal FFmpeg:'
-                        );
-
-                        console.log(
-                            command
-                        );
-                    }
-                )
-                .on(
-                    'stderr',
-                    line => {
-                        if (
-                            line.includes('size=') ||
-                            line.includes('time=') ||
-                            line.includes('bitrate=')
-                        ) {
-                            console.log(
-                                line
-                            );
-                        }
-                    }
-                )
-                .on(
                     'error',
                     reject
                 )
