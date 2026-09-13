@@ -260,7 +260,6 @@ const concatTsSegments = async (segments, outputFile) => {
         totalBytes += data.length
     }
     if (!totalBytes) throw new Error('После объединения TS получился пустой файл')
-    return totalBytes
 }
 
 const convertCombinedTsToRawPcm = (tsFile, pcmFile) => {
@@ -343,7 +342,6 @@ const validatePcm = async (pcmFile, expectedDuration) => {
             `при ожидаемых ${expectedDuration.toFixed(3)}s`
         )
     }
-    return duration
 }
 
 const cleanup = async () => {
