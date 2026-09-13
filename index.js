@@ -422,38 +422,6 @@ const convertCombinedTsToRawPcm = (tsFile, pcmFile) => {
                     '-f s16le'
                 ])
                 .on(
-                    'start',
-                    command => {
-                        console.log(
-                            '\nFFmpeg TS -> PCM:'
-                        );
-
-                        console.log(
-                            command
-                        );
-                    }
-                )
-                .on(
-                    'stderr',
-                    line => {
-                        stderr +=
-                            line + '\n';
-
-                        if (
-                            line.includes('Error') ||
-                            line.includes('error') ||
-                            line.includes('Header missing') ||
-                            line.includes('Invalid data') ||
-                            line.includes('corrupt') ||
-                            line.includes('timestamp')
-                        ) {
-                            console.log(
-                                `  FFmpeg: ${line}`
-                            );
-                        }
-                    }
-                )
-                .on(
                     'error',
                     error => {
                         reject(
