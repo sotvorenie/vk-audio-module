@@ -483,21 +483,6 @@ const validatePcm = async (pcmFile, expectedDuration) => {
 
     const duration = stat.size / BYTES_PER_SECOND;
 
-    console.log(
-        `Ожидаемая длительность: ` +
-        `${expectedDuration.toFixed(3)}s`
-    );
-
-    console.log(
-        `Полученный PCM: ` +
-        `${duration.toFixed(3)}s`
-    );
-
-    console.log(
-        `Разница: ` +
-        `${(duration - expectedDuration).toFixed(3)}s`
-    );
-
     if (duration < expectedDuration * 0.95) {
         throw new Error(
             `Потеряно слишком много аудио: ` +
