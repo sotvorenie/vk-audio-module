@@ -546,11 +546,11 @@ const main = async () => {
 
         await downloadAndDecryptSegments(segments);
 
-        const combinedTsBytes = await concatTsSegments(segments, COMBINED_TS);
+        await concatTsSegments(segments, COMBINED_TS);
 
         await convertCombinedTsToRawPcm(COMBINED_TS, COMBINED_RAW);
 
-        const pcmDuration = await validatePcm(COMBINED_RAW, expectedDuration);
+        await validatePcm(COMBINED_RAW, expectedDuration);
 
         await fsp.rm(OUTPUT_FILE, {force: true});
 
