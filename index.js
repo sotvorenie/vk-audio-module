@@ -7,12 +7,9 @@ import ffmpegStatic from 'ffmpeg-static';
 
 import {token} from "./token.js";
 
+ffmpeg.setFfmpegPath(ffmpegStatic)
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
-
-const vk = new VK({
-    token,
-})
+const vk = new VK({token})
 
 const WORK_DIR = path.join(process.cwd(), 'vk-hls-temp')
 const SEGMENTS_DIR = path.join(WORK_DIR, 'segments')
@@ -42,14 +39,10 @@ function sleep(ms) {
     });
 }
 
-async function fetchBuffer(url, attempts = 5) {
+const fetchBuffer = async (url, attempts = 5) => {
     let lastError = null;
 
-    for (
-        let attempt = 1;
-        attempt <= attempts;
-        attempt++
-    ) {
+    for (let attempt = 1; attempt <= attempts; attempt++) {
         try {
             const response = await fetch(url, {headers: HTTP_HEADERS, redirect: 'follow'});
 
@@ -73,13 +66,9 @@ async function fetchBuffer(url, attempts = 5) {
         } catch (error) {
             lastError = error;
 
-            console.log(
-                `HTTP retry ${attempt}/${attempts}: ${url}`
-            );
+            console.log(`HTTP retry ${attempt}/${attempts}: ${url}`);
 
-            if (attempt < attempts) {
-                await sleep(500 * attempt);
-            }
+            if (attempt < attempts) await sleep(500 * attempt);
         }
     }
 
@@ -89,59 +78,38 @@ async function fetchBuffer(url, attempts = 5) {
     );
 }
 
-async function fetchText(url) {
-    return (
-        await fetchBuffer(url)
-    ).toString('utf8');
+const fetchText = async (url) => {
+    return (await fetchBuffer(url)).toString('utf8');
 }
 
-function parseAttributeList(line) {
+const parseAttributeList = (line) => {
     const result = {};
 
-    const colonIndex =
-        line.indexOf(':');
+    const colonIndex = line.indexOf(':');
 
-    if (colonIndex === -1) {
-        return result;
-    }
+    if (colonIndex === -1) return result;
 
-    const value =
-        line.slice(colonIndex + 1);
+    const value = line.slice(colonIndex + 1);
 
-    const regex =
-        /([A-Z0-9-]+)=("(?:[^"\\]|\\.)*"|[^,]*)/g;
+    const regex = /([A-Z0-9-]+)=("(?:[^"\\]|\\.)*"|[^,]*)/g;
 
     let match;
 
-    while (
-        (match = regex.exec(value)) !== null
-        ) {
-        let attributeValue =
-            match[2];
+    while ((match = regex.exec(value)) !== null) {
+        let attributeValue = match[2];
 
-        if (
-            attributeValue.startsWith('"') &&
-            attributeValue.endsWith('"')
-        ) {
-            attributeValue =
-                attributeValue.slice(1, -1);
+        if (attributeValue.startsWith('"') && attributeValue.endsWith('"')) {
+            attributeValue = attributeValue.slice(1, -1);
         }
 
-        result[match[1]] =
-            attributeValue;
+        result[match[1]] = attributeValue;
     }
 
     return result;
 }
 
-function parsePlaylist(
-    text,
-    playlistUrl
-) {
-    const lines =
-        text
-            .split(/\r?\n/)
-            .map(line => line.trim());
+const parsePlaylist = (text, playlistUrl) => {
+    const lines = text.split(/\r?\n/).map(line => line.trim());
 
     let mediaSequence = 0;
 
@@ -154,28 +122,14 @@ function parsePlaylist(
     const segments = [];
 
     for (const line of lines) {
-        if (!line) {
-            continue;
-        }
+        if (!line) continue;
 
-        if (
-            line.startsWith(
-                '#EXT-X-MEDIA-SEQUENCE:'
-            )
-        ) {
-            const value =
-                line.slice(
-                    '#EXT-X-MEDIA-SEQUENCE:'.length
-                );
+        if (line.startsWith('#EXT-X-MEDIA-SEQUENCE:')) {
+            const value = line.slice('#EXT-X-MEDIA-SEQUENCE:'.length);
 
-            mediaSequence =
-                Number(value);
+            mediaSequence = Number(value);
 
-            if (
-                !Number.isSafeInteger(
-                    mediaSequence
-                )
-            ) {
+            if (!Number.isSafeInteger(mediaSequence)) {
                 throw new Error(
                     `Некорректный MEDIA-SEQUENCE: ${value}`
                 );
@@ -184,14 +138,10 @@ function parsePlaylist(
             continue;
         }
 
-        if (
-            line.startsWith('#EXT-X-KEY:')
-        ) {
-            const attrs =
-                parseAttributeList(line);
+        if (line.startsWith('#EXT-X-KEY:')) {
+            const attrs = parseAttributeList(line);
 
-            const method =
-                attrs.METHOD;
+            const method = attrs.METHOD;
 
             if (method === 'NONE') {
                 currentKey = {
@@ -213,13 +163,9 @@ function parsePlaylist(
                 );
             }
 
-            const keyFormat =
-                attrs.KEYFORMAT ||
-                'identity';
+            const keyFormat = attrs.KEYFORMAT || 'identity';
 
-            if (
-                keyFormat !== 'identity'
-            ) {
+            if (keyFormat !== 'identity') {
                 throw new Error(
                     `Неподдерживаемый KEYFORMAT: ${keyFormat}`
                 );
@@ -227,57 +173,36 @@ function parsePlaylist(
 
             currentKey = {
                 method: 'AES-128',
-
                 uri: new URL(
                     attrs.URI,
                     playlistUrl
                 ).href,
-
                 iv: attrs.IV || null
             };
 
             continue;
         }
 
-        if (
-            line.startsWith(
-                '#EXT-X-BYTERANGE:'
-            )
-        ) {
+        if (line.startsWith('#EXT-X-BYTERANGE:')) {
             throw new Error(
                 'HLS использует EXT-X-BYTERANGE, ' +
                 'этот вариант загрузчика его не поддерживает'
             );
         }
 
-        if (
-            line.startsWith(
-                '#EXT-X-MAP:'
-            )
-        ) {
+        if (line.startsWith('#EXT-X-MAP:')) {
             throw new Error(
                 'HLS использует EXT-X-MAP, ' +
                 'ожидается обычный MPEG-TS HLS'
             );
         }
 
-        if (
-            line.startsWith('#EXTINF:')
-        ) {
-            const value =
-                line
-                    .slice('#EXTINF:'.length)
-                    .split(',')[0];
+        if (line.startsWith('#EXTINF:')) {
+            const value = line.slice('#EXTINF:'.length).split(',')[0];
 
-            currentDuration =
-                Number(value);
+            currentDuration = Number(value);
 
-            if (
-                !Number.isFinite(
-                    currentDuration
-                ) ||
-                currentDuration <= 0
-            ) {
+            if (!Number.isFinite(currentDuration) || currentDuration <= 0) {
                 throw new Error(
                     `Некорректный EXTINF: ${value}`
                 );
@@ -286,9 +211,7 @@ function parsePlaylist(
             continue;
         }
 
-        if (line.startsWith('#')) {
-            continue;
-        }
+        if (line.startsWith('#')) continue;
 
         if (currentDuration === null) {
             throw new Error(
@@ -296,27 +219,22 @@ function parsePlaylist(
             );
         }
 
-        const index =
-            segments.length;
+        const index = segments.length;
 
-        const sequence =
-            mediaSequence + index;
+        const sequence = mediaSequence + index;
 
         segments.push({
             index,
             sequence,
             duration: currentDuration,
-
             url: new URL(
                 line,
                 playlistUrl
             ).href,
-
             key: {
                 ...currentKey
             }
         });
-
         currentDuration = null;
     }
 
@@ -332,12 +250,9 @@ function parsePlaylist(
 const keyCache = new Map();
 
 async function getHlsKey(url) {
-    if (keyCache.has(url)) {
-        return keyCache.get(url);
-    }
+    if (keyCache.has(url)) return keyCache.get(url);
 
-    const key =
-        await fetchBuffer(url);
+    const key = await fetchBuffer(url);
 
     if (key.length !== 16) {
         throw new Error(
@@ -353,27 +268,17 @@ async function getHlsKey(url) {
 
 function makeIv(segment) {
     if (segment.key.iv) {
-        let hex =
-            segment.key.iv;
+        let hex = segment.key.iv;
 
-        if (
-            hex.startsWith('0x') ||
-            hex.startsWith('0X')
-        ) {
-            hex =
-                hex.slice(2);
-        }
+        if (hex.startsWith('0x') || hex.startsWith('0X')) hex = hex.slice(2);
 
-        if (
-            !/^[0-9a-fA-F]+$/.test(hex)
-        ) {
+        if (!/^[0-9a-fA-F]+$/.test(hex)) {
             throw new Error(
                 `Некорректный IV: ${segment.key.iv}`
             );
         }
 
-        hex =
-            hex.padStart(32, '0');
+        hex = hex.padStart(32, '0');
 
         if (hex.length !== 32) {
             throw new Error(
@@ -382,56 +287,33 @@ function makeIv(segment) {
             );
         }
 
-        return Buffer.from(
-            hex,
-            'hex'
-        );
+        return Buffer.from(hex, 'hex');
     }
 
-    const iv =
-        Buffer.alloc(16);
+    const iv = Buffer.alloc(16);
 
-    const sequence =
-        BigInt(segment.sequence);
+    const sequence = BigInt(segment.sequence);
 
-    iv.writeBigUInt64BE(
-        sequence,
-        8
-    );
+    iv.writeBigUInt64BE(sequence, 8);
 
     return iv;
 }
 
-async function decryptSegment(
-    encrypted,
-    segment
-) {
-    if (
-        segment.key.method === 'NONE'
-    ) {
-        return encrypted;
-    }
+const decryptSegment = async (encrypted, segment) => {
+    if (segment.key.method === 'NONE') return encrypted;
 
-    if (
-        segment.key.method !== 'AES-128'
-    ) {
+    if (segment.key.method !== 'AES-128') {
         throw new Error(
             `Неизвестный HLS encryption method: ` +
             `${segment.key.method}`
         );
     }
 
-    const key =
-        await getHlsKey(
-            segment.key.uri
-        );
+    const key = await getHlsKey(segment.key.uri);
 
-    const iv =
-        makeIv(segment);
+    const iv = makeIv(segment);
 
-    if (
-        encrypted.length % 16 !== 0
-    ) {
+    if (encrypted.length % 16 !== 0) {
         throw new Error(
             `Сегмент #${segment.index} имеет ` +
             `некорректную длину AES ciphertext: ` +
@@ -440,17 +322,9 @@ async function decryptSegment(
     }
 
     try {
-        const decipher =
-            crypto.createDecipheriv(
-                'aes-128-cbc',
-                key,
-                iv
-            );
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
 
-        return Buffer.concat([
-            decipher.update(encrypted),
-            decipher.final()
-        ]);
+        return Buffer.concat([decipher.update(encrypted), decipher.final()]);
     } catch (error) {
         throw new Error(
             `Не удалось расшифровать сегмент ` +
@@ -460,47 +334,27 @@ async function decryptSegment(
     }
 }
 
-async function mapLimit(
-    items,
-    limit,
-    worker
-) {
+const mapLimit = async (items, limit, worker) => {
     let nextIndex = 0;
 
-    const workers =
-        Math.min(
-            limit,
-            items.length
-        );
+    const workers = Math.min(limit, items.length);
 
     await Promise.all(
         Array.from(
             { length: workers },
             async () => {
                 while (true) {
-                    const index =
-                        nextIndex++;
+                    const index = nextIndex++;
+                    if (index >= items.length) return;
 
-                    if (
-                        index >=
-                        items.length
-                    ) {
-                        return;
-                    }
-
-                    await worker(
-                        items[index],
-                        index
-                    );
+                    await worker(items[index], index);
                 }
             }
         )
     );
 }
 
-async function downloadAndDecryptSegments(
-    segments
-) {
+const downloadAndDecryptSegments = async (segments) => {
     console.log(
         '\n=============================='
     );
@@ -513,56 +367,33 @@ async function downloadAndDecryptSegments(
         '=============================='
     );
 
-    await mapLimit(
-        segments,
-        CONCURRENCY,
-        async segment => {
-            const number =
-                String(
-                    segment.index
-                ).padStart(4, '0');
+    await mapLimit(segments, CONCURRENCY, async segment => {
+            const number = String(segment.index).padStart(4, '0');
 
-            const tsFile =
-                path.join(
-                    SEGMENTS_DIR,
-                    `${number}.ts`
-                );
+            const tsFile = path.join(SEGMENTS_DIR, `${number}.ts`);
 
             console.log(
                 `[${segment.index + 1}/${segments.length}] ` +
                 `download seg-${segment.index}`
             );
 
-            const encrypted =
-                await fetchBuffer(
-                    segment.url
-                );
+            const encrypted = await fetchBuffer(segment.url);
 
             console.log(
                 `  encrypted: ` +
                 `${encrypted.length} bytes`
             );
 
-            const decrypted =
-                await decryptSegment(
-                    encrypted,
-                    segment
-                );
+            const decrypted = await decryptSegment(encrypted, segment);
 
-            if (
-                decrypted.length >= 188 &&
-                decrypted[0] !== 0x47
-            ) {
+            if (decrypted.length >= 188 && decrypted[0] !== 0x47) {
                 console.warn(
                     `  WARNING: сегмент #${segment.index} ` +
                     `не начинается с MPEG-TS sync byte 0x47`
                 );
             }
 
-            await fsp.writeFile(
-                tsFile,
-                decrypted
-            );
+            await fsp.writeFile(tsFile, decrypted);
 
             console.log(
                 `  decrypted: ` +
@@ -572,35 +403,17 @@ async function downloadAndDecryptSegments(
     );
 }
 
-async function concatTsSegments(
-    segments,
-    outputFile
-) {
-    await fsp.rm(
-        outputFile,
-        {
-            force: true
-        }
-    );
+const concatTsSegments = async (segments, outputFile) => {
+    await fsp.rm(outputFile, {force: true});
 
     let totalBytes = 0;
 
     for (const segment of segments) {
-        const number =
-            String(
-                segment.index
-            ).padStart(4, '0');
+        const number = String(segment.index).padStart(4, '0');
 
-        const tsFile =
-            path.join(
-                SEGMENTS_DIR,
-                `${number}.ts`
-            );
+        const tsFile = path.join(SEGMENTS_DIR, `${number}.ts`);
 
-        const data =
-            await fsp.readFile(
-                tsFile
-            );
+        const data = await fsp.readFile(tsFile);
 
         if (!data.length) {
             throw new Error(
@@ -608,13 +421,9 @@ async function concatTsSegments(
             );
         }
 
-        await fsp.appendFile(
-            outputFile,
-            data
-        );
+        await fsp.appendFile(outputFile, data);
 
-        totalBytes +=
-            data.length;
+        totalBytes += data.length;
     }
 
     if (!totalBytes) {
@@ -626,24 +435,19 @@ async function concatTsSegments(
     return totalBytes;
 }
 
-function convertCombinedTsToRawPcm(
-    tsFile,
-    pcmFile
-) {
+const convertCombinedTsToRawPcm = (tsFile, pcmFile) => {
     return new Promise(
         (resolve, reject) => {
             let stderr = '';
 
             ffmpeg(tsFile)
                 .inputFormat('mpegts')
-
                 .inputOptions([
                     '-fflags +genpts',
                     '-probesize 50M',
                     '-analyzeduration 50M',
                     '-dts_delta_threshold 0.5'
                 ])
-
                 .outputOptions([
                     '-map 0:a:0',
                     '-vn',
@@ -653,7 +457,6 @@ function convertCombinedTsToRawPcm(
                     '-ac 2',
                     '-f s16le'
                 ])
-
                 .on(
                     'start',
                     command => {
@@ -666,7 +469,6 @@ function convertCombinedTsToRawPcm(
                         );
                     }
                 )
-
                 .on(
                     'stderr',
                     line => {
@@ -687,7 +489,6 @@ function convertCombinedTsToRawPcm(
                         }
                     }
                 )
-
                 .on(
                     'error',
                     error => {
@@ -701,31 +502,24 @@ function convertCombinedTsToRawPcm(
                         );
                     }
                 )
-
                 .on(
                     'end',
                     resolve
                 )
-
                 .save(pcmFile);
         }
     );
 }
 
-function encodeRawPcmToMp3(
-    rawFile,
-    outputFile
-) {
+const encodeRawPcmToMp3 = (rawFile, outputFile) => {
     return new Promise(
         (resolve, reject) => {
             ffmpeg(rawFile)
                 .inputFormat('s16le')
-
                 .inputOptions([
                     '-ar 48000',
                     '-ac 2'
                 ])
-
                 .outputOptions([
                     '-c:a libmp3lame',
                     '-b:a 320k',
@@ -733,7 +527,6 @@ function encodeRawPcmToMp3(
                     '-ac 2',
                     '-write_xing 1'
                 ])
-
                 .on(
                     'start',
                     command => {
@@ -746,7 +539,6 @@ function encodeRawPcmToMp3(
                         );
                     }
                 )
-
                 .on(
                     'stderr',
                     line => {
@@ -761,30 +553,21 @@ function encodeRawPcmToMp3(
                         }
                     }
                 )
-
                 .on(
                     'error',
                     reject
                 )
-
                 .on(
                     'end',
                     resolve
                 )
-
                 .save(outputFile);
         }
     );
 }
 
-async function validatePcm(
-    pcmFile,
-    expectedDuration
-) {
-    const stat =
-        await fsp.stat(
-            pcmFile
-        );
+const validatePcm = async (pcmFile, expectedDuration) => {
+    const stat = await fsp.stat(pcmFile);
 
     if (!stat.size) {
         throw new Error(
@@ -792,9 +575,7 @@ async function validatePcm(
         );
     }
 
-    const duration =
-        stat.size /
-        BYTES_PER_SECOND;
+    const duration = stat.size / BYTES_PER_SECOND;
 
     console.log(
         `Ожидаемая длительность: ` +
@@ -811,10 +592,7 @@ async function validatePcm(
         `${(duration - expectedDuration).toFixed(3)}s`
     );
 
-    if (
-        duration <
-        expectedDuration * 0.95
-    ) {
+    if (duration < expectedDuration * 0.95) {
         throw new Error(
             `Потеряно слишком много аудио: ` +
             `${duration.toFixed(3)}s ` +
@@ -822,10 +600,7 @@ async function validatePcm(
         );
     }
 
-    if (
-        duration >
-        expectedDuration + 10
-    ) {
+    if (duration > expectedDuration + 10) {
         throw new Error(
             `Получено подозрительно много аудио: ` +
             `${duration.toFixed(3)}s ` +
@@ -836,35 +611,19 @@ async function validatePcm(
     return duration;
 }
 
-async function cleanup() {
-    await fsp.rm(
-        WORK_DIR,
-        {
-            recursive: true,
-            force: true
-        }
-    );
+const cleanup = async () => {
+    await fsp.rm(WORK_DIR, {recursive: true, force: true});
 }
 
-async function main() {
+const main = async () => {
     let success = false;
 
     try {
         await cleanup();
 
-        await fsp.mkdir(
-            SEGMENTS_DIR,
-            {
-                recursive: true
-            }
-        );
+        await fsp.mkdir(SEGMENTS_DIR, {recursive: true});
 
-        await fsp.mkdir(
-            path.dirname(OUTPUT_FILE),
-            {
-                recursive: true
-            }
-        );
+        await fsp.mkdir(path.dirname(OUTPUT_FILE), {recursive: true});
 
         console.log(
             '\n=============================='
@@ -878,13 +637,9 @@ async function main() {
             '=============================='
         );
 
-        const response =
-            await vk.api.audio.get({
-                count: 1
-            });
+        const response = await vk.api.audio.get({count: 1});
 
-        const track =
-            response.items?.[0];
+        const track = response.items?.[0];
 
         if (!track) {
             throw new Error(
@@ -922,33 +677,17 @@ async function main() {
             `URL: ${track.url}`
         );
 
-        const playlistText =
-            await fetchText(
-                track.url
-            );
+        const playlistText = await fetchText(track.url);
 
-        if (
-            !playlistText.includes(
-                '#EXTM3U'
-            )
-        ) {
+        if (!playlistText.includes('#EXTM3U')) {
             throw new Error(
                 'Ответ VK не похож на HLS playlist'
             );
         }
 
-        const segments =
-            parsePlaylist(
-                playlistText,
-                track.url
-            );
+        const segments = parsePlaylist(playlistText, track.url);
 
-        const expectedDuration =
-            segments.reduce(
-                (sum, segment) =>
-                    sum + segment.duration,
-                0
-            );
+        const expectedDuration = segments.reduce((sum, segment) => sum + segment.duration, 0);
 
         console.log(
             `Сегментов: ${segments.length}`
@@ -959,9 +698,7 @@ async function main() {
             `${expectedDuration.toFixed(3)}s`
         );
 
-        await downloadAndDecryptSegments(
-            segments
-        );
+        await downloadAndDecryptSegments(segments);
 
         console.log(
             '\n=============================='
@@ -975,11 +712,7 @@ async function main() {
             '=============================='
         );
 
-        const combinedTsBytes =
-            await concatTsSegments(
-                segments,
-                COMBINED_TS
-            );
+        const combinedTsBytes = await concatTsSegments(segments, COMBINED_TS);
 
         console.log(
             `Общий TS: ` +
@@ -1002,10 +735,7 @@ async function main() {
             '=============================='
         );
 
-        await convertCombinedTsToRawPcm(
-            COMBINED_TS,
-            COMBINED_RAW
-        );
+        await convertCombinedTsToRawPcm(COMBINED_TS, COMBINED_RAW);
 
         console.log(
             '\n=============================='
@@ -1019,11 +749,7 @@ async function main() {
             '=============================='
         );
 
-        const pcmDuration =
-            await validatePcm(
-                COMBINED_RAW,
-                expectedDuration
-            );
+        const pcmDuration = await validatePcm(COMBINED_RAW, expectedDuration);
 
         console.log(
             '\n=============================='
@@ -1036,22 +762,11 @@ async function main() {
         console.log(
             '=============================='
         );
-        await fsp.rm(
-            OUTPUT_FILE,
-            {
-                force: true
-            }
-        );
+        await fsp.rm(OUTPUT_FILE, {force: true});
 
-        await encodeRawPcmToMp3(
-            COMBINED_RAW,
-            OUTPUT_FILE
-        );
+        await encodeRawPcmToMp3(COMBINED_RAW, OUTPUT_FILE);
 
-        const outputStat =
-            await fsp.stat(
-                OUTPUT_FILE
-            );
+        const outputStat = await fsp.stat(OUTPUT_FILE);
 
         if (!outputStat.size) {
             throw new Error(
