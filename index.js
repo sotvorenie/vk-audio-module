@@ -348,15 +348,15 @@ const cleanup = async () => {
     await fsp.rm(WORK_DIR, {recursive: true, force: true})
 }
 
-const main = async () => {
+const main = async (track) => {
     let success = false
     try {
         await cleanup()
         await fsp.mkdir(SEGMENTS_DIR, {recursive: true})
         await fsp.mkdir(path.dirname(OUTPUT_FILE), {recursive: true})
 
-        const response = await vk.api.audio.get({count: 1})
-        const track = response.items?.[0]
+        // const response = await vk.api.audio.get({count: 1})
+        // const track = response.items?.[0]
 
         if (!track) throw new Error('VK не вернул ни одного трека')
         if (!track.url) throw new Error('У трека отсутствует URL')
